@@ -1,0 +1,172 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for storing additional user data
+model User {
+  id                String   @id @default(cuid())
+  firebaseUid       String   @unique
+  email             String   @unique
+  displayName       String?
+  avatarUrl         String?
+  emailVerified     Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relationships
+  sessions          Session[]
+  oauthConnections  OAuthConnection[]
+  userApps          UserApp[]
+  auditLogs         AuditLog[]
+  
+  @@map("users")
+}
+
+// OAuth2 connections for SSO
+model OAuthConnection {
+  id            String   @id @default(cuid())
+  userId        String
+  clientId      String
+  clientSecret  String
+  scopes        String[]
+  redirectUri   String
+  state         String?
+  codeChallenge String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relationships
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("oauth_connections")
+}
+
+// User sessions
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relationships
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// Connected applications
+model App {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  clientId     String   @unique
+  clientSecret String
+  redirectUris String[]
+  scopes       String[]
+  logoUrl      String?
+  websiteUrl   String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relationships
+  userApps     UserApp[]
+  
+  @@map("apps")
+}
+
+// User-App connections
+model UserApp {
+  id           String   @id @default(cuid())
+  userId       String
+  appId        String
+  scopes       String[]
+  isActive     Boolean  @default(true)
+  lastAccessed DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relationships
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app          App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, appId])
+  @@map("user_apps")
+}
+
+// Audit logging
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String?
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("audit_logs")
+}
+
+// OAuth2 authorization codes
+model AuthorizationCode {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  userId          String
+  clientId        String
+  redirectUri     String
+  scopes          String[]
+  codeChallenge   String?
+  codeChallengeMethod String?
+  expiresAt       DateTime
+  isUsed          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  
+  @@map("authorization_codes")
+}
+
+// OAuth2 access tokens
+model AccessToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  clientId  String
+  scopes    String[]
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@map("access_tokens")
+}
+
+// OAuth2 refresh tokens
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  clientId    String
+  accessToken String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@map("refresh_tokens")
+}
